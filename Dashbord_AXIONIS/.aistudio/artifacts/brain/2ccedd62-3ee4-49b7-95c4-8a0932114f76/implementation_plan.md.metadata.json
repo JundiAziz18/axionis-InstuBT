@@ -1,6 +1,0 @@
-{
-  "summary":  "Implementation plan for AXIONIS Care Watch AI Dashboard covering all 7 modules (Fase 1-4), SQLite persistent database for user management and real-time activity logs, Socket.IO + MQTT bridge with interactive ESP32-S3 simulator, and synthetic canvas/waveform visualizations.",
-  "updatedAt":  "2026-10-26T10:06:28.814896312Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}
