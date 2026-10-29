@@ -1,0 +1,6 @@
+{
+  "name": "AXIONIS Care Watch AI Dashboard",
+  "description": "Edge-AIoT Multimodal Stroke Screening & Family Care Dashboard with real-time telemetry, SQLite user management, and live activity tracking.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

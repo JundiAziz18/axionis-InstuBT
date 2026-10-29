@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Caregiver or family viewer profile authenticated via Firebase Auth",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full display name of the user",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "phoneWa": {
+          "type": "string",
+          "description": "Emergency WhatsApp contact number",
+          "minLength": 3,
+          "maxLength": 40
+        },
+        "deviceId": {
+          "type": "string",
+          "description": "Paired AXIONIS Edge device identifier",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "role": {
+          "type": "string",
+          "description": "Access role within the care circle",
+          "enum": ["Primary Caregiver", "Family Viewer"]
+        },
+        "authProvider": {
+          "type": "string",
+          "description": "Authentication provider used (google.com or password)",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp when the account was created",
+          "minLength": 10,
+          "maxLength": 40
+        },
+        "lastActiveAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp when the user was last active",
+          "minLength": 10,
+          "maxLength": 40
+        }
+      },
+      "required": ["uid", "name", "email", "phoneWa", "deviceId", "role", "authProvider", "createdAt", "lastActiveAt"]
+    },
+    "StrokeEvent": {
+      "title": "StrokeEvent",
+      "description": "Persistent stroke detection event from ESP32-S3 MQTT / IoT Bridge stored in Google Cloud Firestore",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "device": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "level": { "type": "string", "enum": ["CRITICAL", "WARNING", "NORMAL"] },
+        "type": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "triggerModality": { "type": "string", "enum": ["Multimodal", "Visual", "Audio"] },
+        "timestamp": { "type": "string", "minLength": 10, "maxLength": 40 },
+        "faceProb": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dysProb": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rms": { "type": "number", "minimum": 0, "maximum": 10 },
+        "uptimeSec": { "type": "number", "minimum": 0 },
+        "msg": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "acknowledged": { "type": "boolean" },
+        "acknowledgedBy": { "type": "string", "maxLength": 100 },
+        "acknowledgedAt": { "type": "string", "maxLength": 40 },
+        "clinicalNotes": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "minLength": 10, "maxLength": 40 }
+      },
+      "required": [
+        "id",
+        "device",
+        "level",
+        "type",
+        "triggerModality",
+        "timestamp",
+        "faceProb",
+        "dysProb",
+        "rms",
+        "uptimeSec",
+        "msg",
+        "acknowledged",
+        "updatedAt"
+      ]
+    },
+    "DeviceState": {
+      "title": "DeviceState",
+      "description": "Cloud-persisted ESP32-S3 device health, latest MQTT telemetry, and configuration",
+      "type": "object",
+      "properties": {
+        "deviceId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "brokerUrl": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "topicPrefix": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "online": { "type": "boolean" },
+        "rssi": { "type": "number" },
+        "freePsram": { "type": "number" },
+        "uptimeSec": { "type": "number" },
+        "lastState": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "faceProb": { "type": "number" },
+        "dysProb": { "type": "number" },
+        "rms": { "type": "number" },
+        "updatedAt": { "type": "string", "minLength": 10, "maxLength": 40 }
+      },
+      "required": [
+        "deviceId",
+        "brokerUrl",
+        "topicPrefix",
+        "online",
+        "rssi",
+        "freePsram",
+        "uptimeSec",
+        "lastState",
+        "faceProb",
+        "dysProb",
+        "rms",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profile documents keyed by Firebase Auth UID"
+    },
+    "/events/{eventId}": {
+      "schema": {
+        "$ref": "#/entities/StrokeEvent"
+      },
+      "description": "Stroke detection alerts and history synced from ESP32-S3 MQTT bridge"
+    },
+    "/devices/{deviceId}": {
+      "schema": {
+        "$ref": "#/entities/DeviceState"
+      },
+      "description": "Real-time ESP32-S3 device status and telemetry snapshot in Google Cloud Firestore"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  SECRETS_SCAN_ENABLED = "false"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_EMQX_HOST,VITE_EMQX_USER,VITE_EMQX_PASS,VITE_MQTT_BROKER_URL,VITE_MQTT_WSS_URL,VITE_MQTT_USERNAME,VITE_MQTT_PASSWORD"
+  SECRETS_SCAN_OMIT_PATHS = "dist/**,src/**"
+
+# Security Headers for Public Deployment
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Proxy API requests to Google Cloud Run Backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://ais-pre-6klkz5lw6aaf3zqride5yp-601949175929.asia-southeast1.run.app/api/:splat"
+  status = 200
+  force = true
+
+# Proxy Socket.IO requests to Google Cloud Run Backend
+[[redirects]]
+  from = "/socket.io/*"
+  to = "https://ais-pre-6klkz5lw6aaf3zqride5yp-601949175929.asia-southeast1.run.app/socket.io/:splat"
+  status = 200
+  force = true
+
+# SPA Fallback for React Frontend
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

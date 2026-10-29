@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Multi-Device Isolation Helper: Checks that the authenticated user is paired with the target deviceId
+    function isPairedWithDevice(targetDeviceId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.deviceId == targetDeviceId;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'phoneWa', 'deviceId', 'role', 'authProvider', 'createdAt', 'lastActiveAt'])
+        && data.keys().hasOnly(['uid', 'name', 'email', 'phoneWa', 'deviceId', 'role', 'authProvider', 'createdAt', 'lastActiveAt'])
+        && data.uid is string && data.uid == request.auth.uid && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 150
+        && data.phoneWa is string && data.phoneWa.size() >= 3 && data.phoneWa.size() <= 40
+        && data.deviceId is string && data.deviceId.size() >= 1 && data.deviceId.size() <= 64
+        && data.role is string && (data.role == 'Primary Caregiver' || data.role == 'Family Viewer')
+        && data.authProvider is string && data.authProvider.size() >= 1 && data.authProvider.size() <= 40
+        && data.createdAt is string && data.createdAt.size() >= 10 && data.createdAt.size() <= 40
+        && data.lastActiveAt is string && data.lastActiveAt.size() >= 10 && data.lastActiveAt.size() <= 40;
+    }
+
+    function isValidStrokeEvent(data, eventId) {
+      return data.keys().hasAll([
+          'id', 'device', 'level', 'type', 'triggerModality', 'timestamp',
+          'faceProb', 'dysProb', 'rms', 'uptimeSec', 'msg', 'acknowledged',
+          'acknowledgedBy', 'acknowledgedAt', 'clinicalNotes', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'device', 'level', 'type', 'triggerModality', 'timestamp',
+          'faceProb', 'dysProb', 'rms', 'uptimeSec', 'msg', 'acknowledged',
+          'acknowledgedBy', 'acknowledgedAt', 'clinicalNotes', 'updatedAt'
+        ])
+        && data.id is string && data.id == eventId && data.id.size() >= 1 && data.id.size() <= 128
+        && data.device is string && data.device.size() >= 1 && data.device.size() <= 64
+        && data.level is string && (data.level == 'CRITICAL' || data.level == 'WARNING' || data.level == 'NORMAL')
+        && data.type is string && data.type.size() >= 1 && data.type.size() <= 200
+        && data.triggerModality is string && (data.triggerModality == 'Multimodal' || data.triggerModality == 'Visual' || data.triggerModality == 'Audio')
+        && data.timestamp is string && data.timestamp.size() >= 10 && data.timestamp.size() <= 40
+        && data.faceProb is number && data.faceProb >= 0 && data.faceProb <= 1
+        && data.dysProb is number && data.dysProb >= 0 && data.dysProb <= 1
+        && data.rms is number && data.rms >= 0 && data.rms <= 10
+        && data.uptimeSec is number && data.uptimeSec >= 0
+        && data.msg is string && data.msg.size() >= 1 && data.msg.size() <= 500
+        && data.acknowledged is bool
+        && data.acknowledgedBy is string && data.acknowledgedBy.size() <= 100
+        && data.acknowledgedAt is string && data.acknowledgedAt.size() <= 40
+        && data.clinicalNotes is string && data.clinicalNotes.size() <= 500
+        && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40;
+    }
+
+    function isValidDeviceState(data, deviceId) {
+      return data.keys().hasAll([
+          'deviceId', 'brokerUrl', 'topicPrefix', 'online', 'rssi',
+          'freePsram', 'uptimeSec', 'lastState', 'faceProb', 'dysProb', 'rms', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'deviceId', 'brokerUrl', 'topicPrefix', 'online', 'rssi',
+          'freePsram', 'uptimeSec', 'lastState', 'faceProb', 'dysProb', 'rms', 'updatedAt'
+        ])
+        && data.deviceId is string && data.deviceId == deviceId && data.deviceId.size() >= 1 && data.deviceId.size() <= 64
+        && data.brokerUrl is string && data.brokerUrl.size() >= 1 && data.brokerUrl.size() <= 200
+        && data.topicPrefix is string && data.topicPrefix.size() >= 1 && data.topicPrefix.size() <= 64
+        && data.online is bool
+        && data.rssi is number
+        && data.freePsram is number
+        && data.uptimeSec is number
+        && data.lastState is string && data.lastState.size() >= 1 && data.lastState.size() <= 64
+        && data.faceProb is number
+        && data.dysProb is number
+        && data.rms is number
+        && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40;
+    }
+
+    // 3. User Profiles Collection (PII Protected to Owner Only)
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming());
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'phoneWa', 'deviceId', 'role', 'authProvider', 'lastActiveAt']);
+      allow delete: if false;
+    }
+
+    // 4. Stroke Events History Collection (Isolated per Paired Device ID)
+    match /events/{eventId} {
+      allow get, list: if isSignedIn() && isPairedWithDevice(resource.data.device);
+      allow create: if isSignedIn()
+        && isValidId(eventId)
+        && isValidStrokeEvent(incoming(), eventId)
+        && isPairedWithDevice(incoming().device);
+      allow update: if isSignedIn()
+        && isValidId(eventId)
+        && isValidStrokeEvent(incoming(), eventId)
+        && isPairedWithDevice(existing().device)
+        && incoming().id == existing().id
+        && incoming().device == existing().device
+        && incoming().timestamp == existing().timestamp
+        && incoming().diff(existing()).affectedKeys().hasOnly(['acknowledged', 'acknowledgedBy', 'acknowledgedAt', 'clinicalNotes', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 5. Device State Collection (Isolated per Paired Device ID)
+    match /devices/{deviceId} {
+      allow get, list: if isSignedIn() && isPairedWithDevice(deviceId);
+      allow create, update: if isSignedIn()
+        && isValidId(deviceId)
+        && isValidDeviceState(incoming(), deviceId)
+        && isPairedWithDevice(deviceId);
+      allow delete: if false;
+    }
+  }
+}
